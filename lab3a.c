@@ -17,6 +17,35 @@ __u32 block_size = 0;
 __u32 inode_size = 0;
 int total_groups = 0;
 
+void printBfree(unsigned int block_bitmap_offset){
+
+	// Read data into bitmap
+	char *block_bytes = (char*)malloc(sizeof(block_size));
+	pread(disk_fd, block_bytes, block_size, block_bitmap_offset);
+
+	// Iterate over each byte
+	int byte_counter;
+	for(byte_counter = 0; byte_counter < block_size; byte_counter++){
+
+		// Iterate over each bit
+		int bit_counter;
+		int bit_selector = 1;
+		char curr_byte = block_bytes[byte_counter];
+		for(bit_counter = 0; bit_counter < 8; bit_counter++){
+
+			// If the current bit is 0, it is free
+			if(!(curr_byte & bit_selector)){
+				fprintf(stderr, "byte counter: %d\n", byte_counter);
+				fprintf(stderr, "bit counter:%d\n", bit_counter);
+				fprintf(stdout, "%s,%d\n", "BFREE", ((byte_counter*8)+bit_counter));
+			}
+
+			bit_selector <<= 1;
+		}
+	}
+
+}
+
 void printSuperblock(){
 
 	// Read data into superblock struct
@@ -51,11 +80,6 @@ void printGroup(int current_group){
 		curr_num_inodes = superblock.s_inodes_count - (superblock.s_inodes_per_group*(total_groups-1));
 	}
 
-
-	// fprintf(stderr, "total_groups: %d\n", total_groups);
-	// fprintf(stderr, "current_group: %d\n", current_group);
-	// fprintf(stderr, "Current curr_num_blocks: %d\n", curr_num_blocks);
-
 	fprintf(stdout, "%s,%d,%d,%d,%d,%d,%d,%d,%d\n", 
 		"GROUP",
 		superblock.s_block_group_nr,
@@ -66,10 +90,14 @@ void printGroup(int current_group){
 		group_desc.bg_block_bitmap,
 		group_desc.bg_inode_bitmap,
 		group_desc.bg_inode_table);
+
+	// Get the offset for current group's block bitmap
+	unsigned int block_bitmap_number = group_desc.bg_block_bitmap;
+	unsigned int block_bitmap_offset = SUPERBLOCK_OFFSET+(block_bitmap_number-1)*block_size;
+	printBfree(block_bitmap_offset);
+
 	return;
-
 }
-
 
 int main(int argc, char *argv[]){
 
@@ -94,12 +122,14 @@ int main(int argc, char *argv[]){
 	if(superblock.s_blocks_count % superblock.s_blocks_per_group != 0)
 		total_groups += 1;
 
+	// Analyze each group
 	int current_group;
 	group_offset = SUPERBLOCK_OFFSET + block_size;
 	for(current_group = 0; current_group < total_groups; current_group++){
 		printGroup(current_group);
 		group_offset += block_size;	// change block_size
 	}
+
 
 
 }
