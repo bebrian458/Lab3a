@@ -17,11 +17,13 @@ __u32 block_size = 0;
 __u32 inode_size = 0;
 int total_groups = 0;
 
-void printBfree(unsigned int block_bitmap_offset){
-
+void printBfreeOrIfree(unsigned int bitmap_offset){
 	// Read data into bitmap
 	char *block_bytes = (char*)malloc(sizeof(block_size));
-	pread(disk_fd, block_bytes, block_size, block_bitmap_offset);
+	pread(disk_fd, block_bytes, block_size, bitmap_offset);
+	
+	// 0th bit of 0th byte = block num 1 (superblock) of the first group
+	int first_block_num = superblock.s_first_data_block;
 
 	// Iterate over each byte
 	int byte_counter;
@@ -35,14 +37,20 @@ void printBfree(unsigned int block_bitmap_offset){
 
 			// If the current bit is 0, it is free
 			if(!(curr_byte & bit_selector)){
-				fprintf(stderr, "byte counter: %d\n", byte_counter);
-				fprintf(stderr, "bit counter:%d\n", bit_counter);
-				fprintf(stdout, "%s,%d\n", "BFREE", ((byte_counter*8)+bit_counter));
+				int curr_block_num = first_block_num + (byte_counter*8) + bit_counter;
+				fprintf(stdout, "%s,%d\n", "BFREE", curr_block_num);
 			}
-
 			bit_selector <<= 1;
 		}
 	}
+
+	// Free blockbytes so that function an be reused for either BFREE or IFREE
+	free(block_bytes);
+}
+
+void printInodeSummary(){
+
+	
 
 }
 
@@ -91,10 +99,17 @@ void printGroup(int current_group){
 		group_desc.bg_inode_bitmap,
 		group_desc.bg_inode_table);
 
-	// Get the offset for current group's block bitmap
+	// Get the offset for current group's block bitmap and print free block entries
 	unsigned int block_bitmap_number = group_desc.bg_block_bitmap;
 	unsigned int block_bitmap_offset = SUPERBLOCK_OFFSET+(block_bitmap_number-1)*block_size;
-	printBfree(block_bitmap_offset);
+	printBfreeOrIfree(block_bitmap_offset);
+
+	// Get the offset for current group's inode bitmap and print free I-node entries
+	unsigned int inode_bitmap_number = group_desc.bg_inode_bitmap;
+	unsigned int inode_bitmap_offset = SUPERBLOCK_OFFSET+(inode_bitmap_number-1)*block_size;
+	printBfreeOrIfree(inode_bitmap_offset);
+
+
 
 	return;
 }
