@@ -14,20 +14,21 @@
 int disk_fd, group_offset;
 struct ext2_super_block superblock;
 struct ext2_group_desc group_desc;
+struct ext2_inode curr_inode;
 __u32 block_size = 0;
 __u32 inode_size = 0;
 int total_groups = 0;
 int inode_nums;
 
 
+
 void printInodeSummary(unsigned int inode_offset, int inode_num){
 
-	char file_type = '?'; // default
-	struct ext2_inode curr_inode;
 	pread(disk_fd, &curr_inode, sizeof(struct ext2_inode), inode_offset);
 
 	// Check mode
 	__u16 mode_value = curr_inode.i_mode & 0xFFF;
+	char file_type = '?'; 					// default
 	if(curr_inode.i_mode & 0x8000)			// regular file
 		file_type = 'f';
 	else if(curr_inode.i_mode & 0x4000) 	// directory
@@ -35,20 +36,46 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 	else if(curr_inode.i_mode & 0xA000) 	// symlink
 		file_type = 's';
 
-	// time (mm/dd/yy hh:mm:ss, GMT)
-	// time_t rawtime;
-	// char time_buffer[9];
-	// struct tm *time_info;
-	// time(&curr_inode.i_ctime);
+//===========//
 
-	// time_info = gmtime(&curr_inode.i_ctime);
-	// strftime(time_buffer, 9, "%H:%M:S", time_info);
+	// time_t temp;
 
+	// time_t temp = curr_inode.i_ctime;
+	// struct tm *info;
+	// info = localtime(&temp);
+	// char buf1[18];
+	// strftime(buf1, 18, "%m/%d/%g %H:%M:%S", info);
+
+
+	// time_t temp1 = curr_inode.i_mtime;
+	// struct tm *mod;
+	// mod = gmtime(&temp1);
+	// char buf2[18];
+	// strftime(buf2, 18, "%m/%d/%g %H:%M:%S", mod);
+
+	// time_t temp2 = curr_inode.i_atime;
+	// struct tm *access;
+	// access = gmtime(&temp2);
+	// char buf3[18];
+	// strftime(buf3, 18, "%m/%d/%g %H:%M:%S", access);
 
 
 	// check if non-zero mode and non-zero link count
-	if(curr_inode.i_mode != 0 && curr_inode.i_links_count != 0)
-		fprintf(stdout, "%s,%d,%c,%o,%d,%d,%d,%d,%d,%d,%d,%d\n", 
+	if(curr_inode.i_mode != 0 && curr_inode.i_links_count != 0){
+
+		// fprintf(stderr, "Before time\n");
+
+		// time_t *temp = malloc(sizeof(temp));
+
+		// temp = (time_t)&curr_inode.i_ctime;
+
+		// fprintf(stderr, "in the middle\n");
+
+		// struct tm *info = gmtime(temp); 
+
+		// fprintf(stderr, "After time\n");
+
+		fprintf(stdout, "%s,%d,%c,%o,%d,%d,%d,%x,%x,%x,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", 
 			"INODE",
 			inode_num,
 			file_type,
@@ -56,11 +83,19 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 			curr_inode.i_uid,
 			curr_inode.i_gid,
 			curr_inode.i_links_count,
+			// buf1,
+			// buf2,
+			// buf3,
 			curr_inode.i_ctime,
 			curr_inode.i_mtime,
 			curr_inode.i_atime,
 			curr_inode.i_size,
-			curr_inode.i_blocks);
+			curr_inode.i_blocks,
+			curr_inode.i_block[0], curr_inode.i_block[1], curr_inode.i_block[2], curr_inode.i_block[3],
+			curr_inode.i_block[4], curr_inode.i_block[5], curr_inode.i_block[6], curr_inode.i_block[7], 
+			curr_inode.i_block[8], curr_inode.i_block[9], curr_inode.i_block[10], curr_inode.i_block[11], 
+			curr_inode.i_block[12], curr_inode.i_block[13], curr_inode.i_block[14]);
+	}
 
 }
 
