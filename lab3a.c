@@ -21,12 +21,11 @@ int total_groups = 0;
 int inode_nums;
 
 
-
 void printInodeSummary(unsigned int inode_offset, int inode_num){
 
 	pread(disk_fd, &curr_inode, sizeof(struct ext2_inode), inode_offset);
 
-	// Check mode
+	// Identify file type
 	__u16 mode_value = curr_inode.i_mode & 0xFFF;
 	char file_type = '?'; 					// default
 	if(curr_inode.i_mode & 0x8000)			// regular file
@@ -36,46 +35,30 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 	else if(curr_inode.i_mode & 0xA000) 	// symlink
 		file_type = 's';
 
-//===========//
+	// Create ctime string format
+	time_t ctime = curr_inode.i_ctime;
+	struct tm *create_info;
+	create_info = localtime(&ctime);
+	char c_buffer[18];
+	strftime(c_buffer, 18, "%m/%d/%g %H:%M:%S", create_info);
 
-	// time_t temp;
+	// Crete mtime string format
+	time_t mtime = curr_inode.i_mtime;
+	struct tm *mod_info;
+	mod_info = gmtime(&mtime);
+	char m_buffer[18];
+	strftime(m_buffer, 18, "%m/%d/%g %H:%M:%S", mod_info);
 
-	// time_t temp = curr_inode.i_ctime;
-	// struct tm *info;
-	// info = localtime(&temp);
-	// char buf1[18];
-	// strftime(buf1, 18, "%m/%d/%g %H:%M:%S", info);
+	// Create atime string format
+	time_t atime = curr_inode.i_atime;
+	struct tm *access_info;
+	access_info = gmtime(&atime);
+	char a_buffer[18];
+	strftime(a_buffer, 18, "%m/%d/%g %H:%M:%S", access_info);
 
-
-	// time_t temp1 = curr_inode.i_mtime;
-	// struct tm *mod;
-	// mod = gmtime(&temp1);
-	// char buf2[18];
-	// strftime(buf2, 18, "%m/%d/%g %H:%M:%S", mod);
-
-	// time_t temp2 = curr_inode.i_atime;
-	// struct tm *access;
-	// access = gmtime(&temp2);
-	// char buf3[18];
-	// strftime(buf3, 18, "%m/%d/%g %H:%M:%S", access);
-
-
-	// check if non-zero mode and non-zero link count
-	if(curr_inode.i_mode != 0 && curr_inode.i_links_count != 0){
-
-		// fprintf(stderr, "Before time\n");
-
-		// time_t *temp = malloc(sizeof(temp));
-
-		// temp = (time_t)&curr_inode.i_ctime;
-
-		// fprintf(stderr, "in the middle\n");
-
-		// struct tm *info = gmtime(temp); 
-
-		// fprintf(stderr, "After time\n");
-
-		fprintf(stdout, "%s,%d,%c,%o,%d,%d,%d,%x,%x,%x,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", 
+	// Only print if non-zero mode and non-zero link count
+	if(curr_inode.i_mode != 0 && curr_inode.i_links_count != 0)
+		fprintf(stdout, "%s,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", 
 			"INODE",
 			inode_num,
 			file_type,
@@ -83,26 +66,21 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 			curr_inode.i_uid,
 			curr_inode.i_gid,
 			curr_inode.i_links_count,
-			// buf1,
-			// buf2,
-			// buf3,
-			curr_inode.i_ctime,
-			curr_inode.i_mtime,
-			curr_inode.i_atime,
+			c_buffer,
+			m_buffer,
+			a_buffer,
 			curr_inode.i_size,
 			curr_inode.i_blocks,
 			curr_inode.i_block[0], curr_inode.i_block[1], curr_inode.i_block[2], curr_inode.i_block[3],
 			curr_inode.i_block[4], curr_inode.i_block[5], curr_inode.i_block[6], curr_inode.i_block[7], 
 			curr_inode.i_block[8], curr_inode.i_block[9], curr_inode.i_block[10], curr_inode.i_block[11], 
 			curr_inode.i_block[12], curr_inode.i_block[13], curr_inode.i_block[14]);
-	}
-
 }
 
 void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offset, int max_num_inodes){
 	
 	// Read data into bitmap
-	char *block_bytes = (char*)malloc(sizeof(block_size));
+	char block_bytes[block_size];
 	pread(disk_fd, block_bytes, block_size, bitmap_offset);
 	
 	// 0th bit of 0th byte represents block num 1 (superblock) of the first group
@@ -143,9 +121,6 @@ void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offse
 			bit_selector <<= 1;
 		}
 	}
-
-	// Free blockbytes so that function an be reused for either BFREE or IFREE
-	free(block_bytes);
 }
 
 void printSuperblock(){
@@ -163,8 +138,6 @@ void printSuperblock(){
 		superblock.s_blocks_per_group, 
 		superblock.s_inodes_per_group,
 		superblock.s_first_ino);
-
-	return;
 }
 
 void printGroup(int current_group){
@@ -203,8 +176,6 @@ void printGroup(int current_group){
 	unsigned int inode_bitmap_number = group_desc.bg_inode_bitmap;
 	unsigned int inode_bitmap_offset = SUPERBLOCK_OFFSET+(inode_bitmap_number-1)*block_size;
 	printBfreeOrIfree(inode_bitmap_offset, 1, inode_table_number-1, curr_num_inodes);
-
-	return;
 }
 
 int main(int argc, char *argv[]){
@@ -237,7 +208,4 @@ int main(int argc, char *argv[]){
 		printGroup(current_group);
 		group_offset += block_size;	// change block_size
 	}
-
-
-
 }
