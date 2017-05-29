@@ -102,13 +102,33 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 			curr_inode.i_block[8], curr_inode.i_block[9], curr_inode.i_block[10], curr_inode.i_block[11], 
 			curr_inode.i_block[12], curr_inode.i_block[13], curr_inode.i_block[14]);
 
-	// Print all dir entries
+	// Print all 12 direct entries
 	if(file_type == 'd'){
 		int i;
 		for(i = 0; i < 12; i++)
 			if(curr_inode.i_block[i] != 0)
 				// curr_inode.i_block[i] tells us the block num that holds the linked list of dir entries
 				printDirEntry(inode_num, SUPERBLOCK_OFFSET+(curr_inode.i_block[i]-1)*block_size);
+	}
+
+	// Print indirect pointer
+	unsigned int ind_ptr_offset = SUPERBLOCK_OFFSET+(curr_inode.i_block[12]-1)*block_size;
+	unsigned int num_ptrs = block_size/sizeof(__u32);
+	unsigned int ind_block_ptrs[num_ptrs];
+	pread(disk_fd, ind_block_ptrs, block_size, ind_ptr_offset);
+
+	int curr_ptr;
+	for(curr_ptr = 0; curr_ptr < num_ptrs; curr_ptr++){
+		if(ind_block_ptrs[curr_ptr] != 0){
+
+			fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
+			"INDIRECT",
+			inode_num,
+			1,  			// 1 - Singly indirect, 2 - Double, 3 Triple
+			12+curr_ptr,	// 12 - curr_inode's i_block
+			curr_inode.i_block[12],
+			ind_block_ptrs[curr_ptr]);
+		}
 	}
 
 }
