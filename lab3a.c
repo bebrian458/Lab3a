@@ -24,6 +24,28 @@ struct ext2_inode curr_inode;
 __u32 block_size = 0;
 __u32 inode_size = 0;
 
+void printDirEntry(int parent_inode_num, unsigned int dir_block_offset){
+
+	// Dir entry offset = start of dir entry node
+	int dir_entry_offset = 0;
+	struct ext2_dir_entry curr_dir_entry;
+
+	while(dir_entry_offset < block_size){
+		pread(disk_fd, &curr_dir_entry, sizeof(struct ext2_dir_entry), dir_block_offset+dir_entry_offset);
+		if(curr_dir_entry.inode != 0)
+			fprintf(stdout, "%s,%d,%d,%d,%d,%d,'%s'\n",
+				"DIRENT",
+				parent_inode_num,
+				dir_entry_offset,
+				curr_dir_entry.inode,
+				curr_dir_entry.rec_len,
+				curr_dir_entry.name_len,
+				curr_dir_entry.name);
+
+		// Iterate to the next dir entry node
+		dir_entry_offset += curr_dir_entry.rec_len;
+	}
+}
 
 void printInodeSummary(unsigned int inode_offset, int inode_num){
 
@@ -42,7 +64,7 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 	// Create ctime string format
 	time_t ctime = curr_inode.i_ctime;
 	struct tm *create_info;
-	create_info = localtime(&ctime);
+	create_info = gmtime(&ctime);
 	char c_buffer[18];
 	strftime(c_buffer, 18, "%m/%d/%g %H:%M:%S", create_info);
 
@@ -79,6 +101,16 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 			curr_inode.i_block[4], curr_inode.i_block[5], curr_inode.i_block[6], curr_inode.i_block[7], 
 			curr_inode.i_block[8], curr_inode.i_block[9], curr_inode.i_block[10], curr_inode.i_block[11], 
 			curr_inode.i_block[12], curr_inode.i_block[13], curr_inode.i_block[14]);
+
+	// Print all dir entries
+	if(file_type == 'd'){
+		int i;
+		for(i = 0; i < 12; i++)
+			if(curr_inode.i_block[i] != 0)
+				// curr_inode.i_block[i] tells us the block num that holds the linked list of dir entries
+				printDirEntry(inode_num, SUPERBLOCK_OFFSET+(curr_inode.i_block[i]-1)*block_size);
+	}
+
 }
 
 void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offset, int max_num_inodes){
@@ -113,10 +145,11 @@ void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offse
 			// Otherwise, it must be used
 			// If it is an inode, print the info
 			else if(isInode && curr_block_num < max_num_inodes){
-				// fprintf(stderr, "%d\n", itable_offset);
+
 				unsigned int inode_offset = SUPERBLOCK_OFFSET 
 				+ (itable_offset*block_size) 
 				+ (curr_block_num-1)*sizeof(struct ext2_inode);
+
 				printInodeSummary(inode_offset, curr_block_num);
 
 				// TODO: read into inode_nums
