@@ -10,15 +10,19 @@
 #include "ext2_fs.h"
 
 #define SUPERBLOCK_OFFSET 1024
+#define REGFILE 		0x8000
+#define DIRECTORY 		0x4000
+#define SYMLINK 		0xA000
 
+// Globals
 int disk_fd, group_offset;
+int total_groups = 0;
+int inode_nums;
 struct ext2_super_block superblock;
 struct ext2_group_desc group_desc;
 struct ext2_inode curr_inode;
 __u32 block_size = 0;
 __u32 inode_size = 0;
-int total_groups = 0;
-int inode_nums;
 
 
 void printInodeSummary(unsigned int inode_offset, int inode_num){
@@ -27,12 +31,12 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 
 	// Identify file type
 	__u16 mode_value = curr_inode.i_mode & 0xFFF;
-	char file_type = '?'; 					// default
-	if(curr_inode.i_mode & 0x8000)			// regular file
+	char file_type = '?'; 	// default
+	if(curr_inode.i_mode & REGFILE)			
 		file_type = 'f';
-	else if(curr_inode.i_mode & 0x4000) 	// directory
+	else if(curr_inode.i_mode & DIRECTORY) 	
 		file_type = 'd';
-	else if(curr_inode.i_mode & 0xA000) 	// symlink
+	else if(curr_inode.i_mode & SYMLINK) 	
 		file_type = 's';
 
 	// Create ctime string format
