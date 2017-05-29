@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include "ext2_fs.h"
 
 #define SUPERBLOCK_OFFSET 1024
@@ -16,13 +17,60 @@ struct ext2_group_desc group_desc;
 __u32 block_size = 0;
 __u32 inode_size = 0;
 int total_groups = 0;
+int inode_nums;
 
-void printBfreeOrIfree(unsigned int bitmap_offset){
+
+void printInodeSummary(unsigned int inode_offset, int inode_num){
+
+	char file_type = '?'; // default
+	struct ext2_inode curr_inode;
+	pread(disk_fd, &curr_inode, sizeof(struct ext2_inode), inode_offset);
+
+	// Check mode
+	__u16 mode_value = curr_inode.i_mode & 0xFFF;
+	if(curr_inode.i_mode & 0x8000)			// regular file
+		file_type = 'f';
+	else if(curr_inode.i_mode & 0x4000) 	// directory
+		file_type = 'd';
+	else if(curr_inode.i_mode & 0xA000) 	// symlink
+		file_type = 's';
+
+	// time (mm/dd/yy hh:mm:ss, GMT)
+	// time_t rawtime;
+	// char time_buffer[9];
+	// struct tm *time_info;
+	// time(&curr_inode.i_ctime);
+
+	// time_info = gmtime(&curr_inode.i_ctime);
+	// strftime(time_buffer, 9, "%H:%M:S", time_info);
+
+
+
+	// check if non-zero mode and non-zero link count
+	if(curr_inode.i_mode != 0 && curr_inode.i_links_count != 0)
+		fprintf(stdout, "%s,%d,%c,%o,%d,%d,%d,%d,%d,%d,%d,%d\n", 
+			"INODE",
+			inode_num,
+			file_type,
+			mode_value,
+			curr_inode.i_uid,
+			curr_inode.i_gid,
+			curr_inode.i_links_count,
+			curr_inode.i_ctime,
+			curr_inode.i_mtime,
+			curr_inode.i_atime,
+			curr_inode.i_size,
+			curr_inode.i_blocks);
+
+}
+
+void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offset, int max_num_inodes){
+	
 	// Read data into bitmap
 	char *block_bytes = (char*)malloc(sizeof(block_size));
 	pread(disk_fd, block_bytes, block_size, bitmap_offset);
 	
-	// 0th bit of 0th byte = block num 1 (superblock) of the first group
+	// 0th bit of 0th byte represents block num 1 (superblock) of the first group
 	int first_block_num = superblock.s_first_data_block;
 
 	// Iterate over each byte
@@ -30,28 +78,39 @@ void printBfreeOrIfree(unsigned int bitmap_offset){
 	for(byte_counter = 0; byte_counter < block_size; byte_counter++){
 
 		// Iterate over each bit
-		int bit_counter;
+		int bit_counter, curr_block_num;
 		int bit_selector = 1;
 		char curr_byte = block_bytes[byte_counter];
 		for(bit_counter = 0; bit_counter < 8; bit_counter++){
+			
+			curr_block_num = first_block_num + (byte_counter*8) + bit_counter;
 
 			// If the current bit is 0, it is free
 			if(!(curr_byte & bit_selector)){
-				int curr_block_num = first_block_num + (byte_counter*8) + bit_counter;
-				fprintf(stdout, "%s,%d\n", "BFREE", curr_block_num);
+
+				if(!isInode)
+					fprintf(stdout, "%s,%d\n", "BFREE", curr_block_num);
+				else
+					fprintf(stdout, "%s,%d\n", "IFREE", curr_block_num);
 			}
+			// Otherwise, it must be used
+			// If it is an inode, print the info
+			else if(isInode && curr_block_num < max_num_inodes){
+				// fprintf(stderr, "%d\n", itable_offset);
+				unsigned int inode_offset = SUPERBLOCK_OFFSET 
+				+ (itable_offset*block_size) 
+				+ (curr_block_num-1)*sizeof(struct ext2_inode);
+				printInodeSummary(inode_offset, curr_block_num);
+
+				// TODO: read into inode_nums
+			}
+			
 			bit_selector <<= 1;
 		}
 	}
 
 	// Free blockbytes so that function an be reused for either BFREE or IFREE
 	free(block_bytes);
-}
-
-void printInodeSummary(){
-
-	
-
 }
 
 void printSuperblock(){
@@ -101,15 +160,14 @@ void printGroup(int current_group){
 
 	// Get the offset for current group's block bitmap and print free block entries
 	unsigned int block_bitmap_number = group_desc.bg_block_bitmap;
+	unsigned int inode_table_number = group_desc.bg_inode_table;
 	unsigned int block_bitmap_offset = SUPERBLOCK_OFFSET+(block_bitmap_number-1)*block_size;
-	printBfreeOrIfree(block_bitmap_offset);
+	printBfreeOrIfree(block_bitmap_offset, 0, inode_table_number-1, curr_num_inodes);
 
 	// Get the offset for current group's inode bitmap and print free I-node entries
 	unsigned int inode_bitmap_number = group_desc.bg_inode_bitmap;
 	unsigned int inode_bitmap_offset = SUPERBLOCK_OFFSET+(inode_bitmap_number-1)*block_size;
-	printBfreeOrIfree(inode_bitmap_offset);
-
-
+	printBfreeOrIfree(inode_bitmap_offset, 1, inode_table_number-1, curr_num_inodes);
 
 	return;
 }
@@ -126,7 +184,7 @@ int main(int argc, char *argv[]){
 	disk_fd = open(filename, O_RDONLY);
 	if(disk_fd < 0){
 		fprintf(stderr, "Could not open file\n");
-		exit(1);
+		exit(2);
 	}
 
 	printSuperblock();
