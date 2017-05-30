@@ -1,6 +1,6 @@
-// NAME: Brian Be
-// EMAIL: bebrian458@gmail.com
-// UID: 204612203
+// NAME: 	Brian Be, 				Leslie Liang
+// EMAIL: 	bebrian458@gmail.com, 	lliang9838@gmail.com
+// UID: 	204612203, 				204625818
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,6 +130,9 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 				12+curr_ptr,	// 12 - curr_inode's i_block
 				curr_inode.i_block[12],
 				ind_block_ptrs[curr_ptr]);
+
+				if(file_type == 'd')
+					printDirEntry(inode_num,SUPERBLOCK_OFFSET+(ind_block_ptrs[curr_ptr]-1)*block_size);
 			}
 		}
 	}
@@ -169,6 +172,10 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 						12 + 256 + (256*d_curr_ptr) + curr_ptr,	
 						d_ind_block_ptrs[d_curr_ptr],
 						ind_block_ptrs[curr_ptr]);
+
+						if(file_type == 'd')
+							printDirEntry(inode_num,SUPERBLOCK_OFFSET+(ind_block_ptrs[curr_ptr]-1)*block_size);
+
 					}
 				}
 			}
@@ -227,6 +234,9 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 								12 + 256 + (256*256) + (256*256*t_curr_ptr) + (256*d_curr_ptr) + curr_ptr,	
 								d_ind_block_ptrs[d_curr_ptr],
 								ind_block_ptrs[curr_ptr]);
+
+								if(file_type == 'd')
+									printDirEntry(inode_num,SUPERBLOCK_OFFSET+(ind_block_ptrs[curr_ptr]-1)*block_size);
 							}
 						}
 					}
