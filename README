@@ -1,3 +1,43 @@
-NAME:	Brian Be
-EMAIL: 	bebrian458@gmail.com
-UID: 	204612203
+NAME: 	Brian Be, 				Leslie Liang
+EMAIL: 	bebrian458@gmail.com, 	lliang9838@gmail.com
+UID: 	204612203, 				204625818
+
+// Overview
+lab3a.c: C source code that read the on-disk representation of a file system, analyzed it, and sumarrize its contents. This program analyzes the file system in the image file and output a summary to standard out. There were 5 parts to this code: super block, groups, free-lists, inodes, indirect blocks, and directories. After the C file is compiled, the executable takes an EXT2 file system disk image as argument. 
+
+Makefile: has 3 targets
+	default: 	compiles and produces the executable lab3a
+	clean: 		removes the generated executable lab3a
+	dist: 		creates the distribution tarball which includes lab3a.c,
+				Makefile and README
+
+README: Descriptions of the included files. Cites all the important websites/sources that helped us successfully write this program. 
+
+
+// Research
+Arpaci ch 40
+	Basic understanding of file implementation
+
+TA Discussion 
+	Basic guidelines/skeleton for project
+
+https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=1&cad=rja&uact=8&ved=0ahUKEwiM7PWy8ZbUAhWJw1QKHVHKAO0QFggkMAA&url=http%3A%2F%2Fwww.cs.columbia.edu%2F~junfeng%2F09sp-w4118%2Flectures%2Fl1-logistics.ppt&usg=AFQjCNEOuWY5FsJNALpHK2hsDtxTatLBxw&sig2=M_HvAsbLBaAkoZa7HghoYA
+	powerpoint that gave visuals of the file system
+
+http://cs.smith.edu/~nhowe/262/oldlabs/ext2.html
+	Explanation of each block structure
+
+http://e2fsprogs.sourceforge.net/ext2intro.html
+	More infor on file systems
+
+http://www.nongnu.org/ext2-doc/ext2.html
+	Detailed explanation of each block structure
+
+http://slideplayer.com/slide/8807091/
+	Powerpoint that gave more visuals of the file system
+
+https://www.youtube.com/watch?v=oHrlU3b1ZAw
+	Video of dereferencing inode and dir entries
+
+Man Pages + Piazza
+	Ideas on how to format time
