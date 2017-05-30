@@ -148,7 +148,7 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 				fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
 				"INDIRECT",
 				inode_num,
-				2,  				// 1 - Singly indirect, 2 - Double, 3 Triple
+				2,  							// 1 - Singly indirect, 2 - Double, 3 Triple
 				12 + 256 + (256*d_curr_ptr),	// 12 - curr_inode's i_block
 				curr_inode.i_block[13],
 				d_ind_block_ptrs[d_curr_ptr]);
@@ -162,27 +162,78 @@ void printInodeSummary(unsigned int inode_offset, int inode_num){
 				for(curr_ptr = 0; curr_ptr < num_ptrs; curr_ptr++){
 					if(ind_block_ptrs[curr_ptr] != 0){
 
-						//fprintf(stderr, "Inside for loop of curr_ptr: %d\n", curr_ptr);
-
 						fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
 						"INDIRECT",
 						inode_num,
-						1,  									// 1 - Singly indirect, 2 - Double, 3 Triple
-						12 + 256 + (256*d_curr_ptr) + curr_ptr,	// 12 - curr_inode's i_block
+						1,  									
+						12 + 256 + (256*d_curr_ptr) + curr_ptr,	
 						d_ind_block_ptrs[d_curr_ptr],
 						ind_block_ptrs[curr_ptr]);
 					}
 				}
-
 			}
-
 		}
-
 	}
 
+	// Print triple indirect pointer
+	if(curr_inode.i_block[14] != 0){
+		unsigned int t_ind_ptr_offset = SUPERBLOCK_OFFSET+(curr_inode.i_block[14]-1)*block_size;
+		unsigned int t_ind_block_ptrs[num_ptrs];
+		pread(disk_fd, t_ind_block_ptrs, block_size, t_ind_ptr_offset);
 
+		// Iterate over each double indirect pointer
+		int t_curr_ptr;
+		for(t_curr_ptr = 0; t_curr_ptr < num_ptrs; t_curr_ptr++){
+			if(t_ind_block_ptrs[t_curr_ptr] != 0){
+				
+				fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
+				"INDIRECT",
+				inode_num,
+				3,  							// 1 - Singly indirect, 2 - Double, 3 Triple
+				12 + 256 + (256*256) + (256*256*t_curr_ptr),	// 12 - curr_inode's i_block
+				curr_inode.i_block[14],
+				t_ind_block_ptrs[t_curr_ptr]);
+			
+				unsigned int d_ind_ptr_offset = SUPERBLOCK_OFFSET+(t_ind_block_ptrs[t_curr_ptr]-1)*block_size;
+				unsigned int d_ind_block_ptrs[num_ptrs];
+				pread(disk_fd, d_ind_block_ptrs, block_size, d_ind_ptr_offset);
 
+				// Iterate over each indirect pointer
+				int d_curr_ptr;
+				for(d_curr_ptr = 0; d_curr_ptr < num_ptrs; d_curr_ptr++){
+					if(d_ind_block_ptrs[d_curr_ptr] != 0){
 
+						fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
+						"INDIRECT",
+						inode_num,
+						2,  									
+						12 + 256 + (256*256) + (256*256*t_curr_ptr) + d_curr_ptr,	
+						t_ind_block_ptrs[t_curr_ptr],
+						d_ind_block_ptrs[d_curr_ptr]);
+
+						unsigned int ind_ptr_offset = SUPERBLOCK_OFFSET+(d_ind_block_ptrs[d_curr_ptr]-1)*block_size;
+						unsigned int ind_block_ptrs[num_ptrs];
+						pread(disk_fd, ind_block_ptrs, block_size, ind_ptr_offset);
+
+						// Iterate over each referenced data block
+						int curr_ptr;
+						for(curr_ptr = 0; curr_ptr < num_ptrs; curr_ptr++){
+							if(ind_block_ptrs[curr_ptr] != 0){
+
+								fprintf(stdout, "%s,%d,%d,%d,%d,%d\n",
+								"INDIRECT",
+								inode_num,
+								1,  									
+								12 + 256 + (256*256) + (256*256*t_curr_ptr) + (256*d_curr_ptr) + curr_ptr,	
+								d_ind_block_ptrs[d_curr_ptr],
+								ind_block_ptrs[curr_ptr]);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 void printBfreeOrIfree(unsigned int bitmap_offset, int isInode, int itable_offset, int max_num_inodes){
@@ -315,6 +366,6 @@ int main(int argc, char *argv[]){
 	group_offset = SUPERBLOCK_OFFSET + block_size;
 	for(current_group = 0; current_group < total_groups; current_group++){
 		printGroup(current_group);
-		group_offset += block_size;	// change block_size
+		group_offset += sizeof(struct ext2_group_desc);	// change block_size
 	}
 }
